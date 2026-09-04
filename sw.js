@@ -2,7 +2,7 @@
 // Bumped to v2 when the app moved off Manus to /oracle/ on GitHub Pages.
 // Everything here is relative to the service worker's own location, so the
 // cache follows the app instead of assuming it is served from the site root.
-const CACHE_NAME = 'gnostic-oracle-v2';
+const CACHE_NAME = 'gnostic-oracle-v3';
 const APP_ROOT = new URL('./', self.location).pathname;
 const STATIC_ASSETS = [
   APP_ROOT,
@@ -37,8 +37,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Always network-first for API calls
-  if (url.pathname.startsWith(APP_ROOT + 'api/')) {
+  // The answer endpoint is a Cloudflare Worker on its own origin, and questions
+  // are POSTed. Anything cross-origin or non-GET goes straight to the network and
+  // is never cached -- an earlier version tested a same-origin '/api/' path that
+  // could never match, so this branch never ran.
+  const sameOrigin = url.origin === self.location.origin;
+  if (!sameOrigin || event.request.method !== 'GET') {
     event.respondWith(
       fetch(event.request).catch(() => {
         return new Response(

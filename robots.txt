@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+# The knowledge base is a large JSON blob the app fetches at runtime; there is
+# nothing useful in it for a search engine and it wastes crawl budget.
+Disallow: /oracle/manus-storage/
