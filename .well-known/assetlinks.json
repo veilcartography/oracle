@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.gnosticoracle.app",
+    "sha256_cert_fingerprints": [
+      "B7:5D:AE:AC:AA:5D:36:A5:59:15:BD:E5:E7:0D:A9:3C:45:34:CA:F8:0D:B5:D5:61:AF:1C:A9:8F:7E:17:19:92"
+    ]
+  }
+}]
