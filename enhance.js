@@ -21,7 +21,6 @@
   var K_VISIT = 'oracle_first_visit';
   var K_COUNT = 'oracle_question_count';
   var K_DONE = 'oracle_email_captured';
-  var K_SKIP = 'oracle_email_dismissed';
 
   // localStorage throws outright in some privacy modes, so every access is guarded.
   function get(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
@@ -61,6 +60,7 @@
     '.vc-btn-ghost:hover{background:transparent;color:#c9a45c;border-color:transparent}',
     '.vc-msg{font-size:15px;line-height:1.5;margin:0 0 12px}',
     '.vc-msg.vc-err{color:#e0906a}',
+    '.vc-note{margin:14px 0 0;text-align:center;font-size:14px;color:rgba(233,223,200,.5)}',
     '@media(max-width:520px){.vc-courses{top:10px;right:10px;font-size:11px;padding:7px 12px}',
     '.vc-modal{padding:26px 20px}.vc-modal h2{font-size:20px}}'
   ].join('');
@@ -79,9 +79,14 @@
   document.body.appendChild(courses);
 
   /* ---------- modal plumbing ---------- */
+  //
+  // The email gate is a hard wall: once it is up, the only way past it is to
+  // subscribe. `dismissable` is false for that one, which drops the Escape key
+  // handler and leaves nothing on the page that removes the overlay.
   var openOverlay = null;
+  var openDismissable = true;
 
-  function onEsc(e) { if (e.key === 'Escape') closeModal(); }
+  function onEsc(e) { if (e.key === 'Escape' && openDismissable) closeModal(); }
 
   function closeModal() {
     if (openOverlay && openOverlay.parentNode) openOverlay.parentNode.removeChild(openOverlay);
@@ -89,7 +94,7 @@
     document.removeEventListener('keydown', onEsc, true);
   }
 
-  function showModal(buildInner) {
+  function showModal(dismissable, buildInner) {
     if (openOverlay) return;
     var overlay = document.createElement('div');
     overlay.className = 'vc-overlay';
@@ -101,12 +106,13 @@
     buildInner(modal);
     document.body.appendChild(overlay);
     openOverlay = overlay;
+    openDismissable = dismissable;
     document.addEventListener('keydown', onEsc, true);
   }
 
   /* ---------- first-visit guide ---------- */
   function showWelcome() {
-    showModal(function (m) {
+    showModal(true, function (m) {
       m.innerHTML = [
         '<div class="vc-rule">&#10022;</div>',
         '<h2>Welcome to the Oracle</h2>',
@@ -130,15 +136,15 @@
 
   /* ---------- email capture ---------- */
   function showEmailCapture() {
-    showModal(function (m) {
+    showModal(false, function (m) {
       m.innerHTML = [
         '<div class="vc-rule">&#10022;</div>',
         '<h2>Continue Your Journey</h2>',
-        '<p>You have asked three questions. Join the Oracle Circle for what an answer cannot hold.</p>',
+        '<p>You have asked three questions. Join the Oracle Circle to keep asking &mdash; it is free, and it is the only way on from here.</p>',
         '<ul>',
+        '<li>Unlimited questions of the Oracle.</li>',
         '<li>A free eight-part course on Gnostic practice for beginners.</li>',
         '<li>Readings from the Nag Hammadi texts, set in context.</li>',
-        '<li>New material as it is written.</li>',
         '<li>No more than one email a week. Leave whenever you like.</li>',
         '</ul>'
       ].join('');
@@ -163,17 +169,15 @@
       submit.type = 'submit';
       submit.textContent = 'Join the Oracle Circle';
 
-      var skip = document.createElement('button');
-      skip.className = 'vc-btn vc-btn-ghost';
-      skip.type = 'button';
-      skip.textContent = 'Continue without subscribing';
-      skip.onclick = function () { set(K_SKIP, '1'); closeModal(); };
+      var note = document.createElement('p');
+      note.className = 'vc-msg vc-note';
+      note.textContent = 'Your address is used for the course and nothing else.';
 
       form.appendChild(name);
       form.appendChild(email);
       form.appendChild(msg);
       form.appendChild(submit);
-      form.appendChild(skip);
+      form.appendChild(note);
       m.appendChild(form);
 
       form.onsubmit = function (e) {
@@ -257,8 +261,9 @@
     var n = parseInt(get(K_COUNT) || '0', 10) + 1;
     set(K_COUNT, String(n));
 
-    if (n >= QUESTION_LIMIT && !get(K_DONE) && !get(K_SKIP)) {
-      // Let the answer start rendering before the modal covers it.
+    if (n >= QUESTION_LIMIT && !get(K_DONE)) {
+      // Let the third answer start rendering before the wall covers it, so the
+      // reader gets what they asked for and then meets the gate.
       setTimeout(showEmailCapture, 1400);
     }
   }
@@ -278,8 +283,12 @@
     countQuestion();
   }, true);
 
-  /* ---------- first run ---------- */
-  if (!get(K_VISIT)) {
+  /* ---------- on load ---------- */
+  if (parseInt(get(K_COUNT) || '0', 10) >= QUESTION_LIMIT && !get(K_DONE)) {
+    // Reloading is not a way round the wall. A walled reader meets it again
+    // before they can ask anything, not after one more free question.
+    setTimeout(showEmailCapture, 900);
+  } else if (!get(K_VISIT)) {
     // Wait for the app to paint so the guide lands over a finished page.
     setTimeout(showWelcome, 900);
   }
